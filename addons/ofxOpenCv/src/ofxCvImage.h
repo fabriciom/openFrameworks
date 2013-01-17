@@ -24,7 +24,7 @@ class ofxCvBlob;
 
 
 
-class ofxCvImage : public ofBaseImage {
+class ofxCvImage : public ofBaseDraws, public ofBaseHasTexture, public ofBaseHasPixels {
     
   public:
 
@@ -59,10 +59,8 @@ class ofxCvImage : public ofBaseImage {
     virtual void  operator -= ( float value );
     virtual void  operator += ( float value );
 
-    virtual void  setFromPixels( const unsigned char* _pixels, int w, int h ) = 0;
-    virtual void  setFromPixels( const ofPixels & pixels );
-    virtual void  setRoiFromPixels( const unsigned char* _pixels, int w, int h ) = 0;
-    virtual void  setRoiFromPixels( const ofPixels & pixels );
+    virtual void  setFromPixels( unsigned char* _pixels, int w, int h ) = 0;
+    virtual void  setRoiFromPixels( unsigned char* _pixels, int w, int h ) = 0;
     virtual void  operator = ( const ofxCvGrayscaleImage& mom ) = 0;
     virtual void  operator = ( const ofxCvColorImage& mom ) = 0;
     virtual void  operator = ( const ofxCvFloatImage& mom ) = 0;
@@ -79,24 +77,19 @@ class ofxCvImage : public ofBaseImage {
 
     // Get Pixel Data
     //
-    virtual unsigned char*  getPixels();
-    virtual ofPixelsRef		getPixelsRef();
-    virtual unsigned char*  getRoiPixels();
-    virtual ofPixelsRef		getRoiPixelsRef();
+    virtual unsigned char*  getPixels() = 0;
+    virtual unsigned char*  getRoiPixels() = 0;
     virtual IplImage*  getCvImage() { return cvImage; };
 
 
     // Draw Image
     //
-    virtual void updateTexture();
-    virtual void draw( float x, float y );
-    virtual void draw( float x, float y, float w, float h );
-	virtual void draw(const ofPoint & point);
-	virtual void draw(const ofRectangle & rect);
-    virtual void drawROI( float x, float y );
-    virtual void drawROI( float x, float y, float w, float h );
+    virtual void  draw( float x, float y );
+    virtual void  draw( float x, float y, float w, float h );
+    virtual void  drawROI( float x, float y );
+    virtual void  drawROI( float x, float y, float w, float h );
     virtual void setAnchorPercent( float xPct, float yPct );
-    virtual void setAnchorPoint( float x, float y );
+    virtual void setAnchorPoint( int x, int y );
     virtual void resetAnchor();
     
     
@@ -160,8 +153,6 @@ class ofxCvImage : public ofBaseImage {
                                      
     virtual void swapTemp();  // swap cvImageTemp back
                               // to cvImage after an image operation
-    virtual IplImage*  getCv8BitsImage() { return cvImage; }
-    virtual IplImage*  getCv8BitsRoiImage() { return cvImage; }
                           
     IplImage*  cvImage;
     IplImage*  cvImageTemp;   // this is typically swapped back into cvImage
@@ -173,10 +164,10 @@ class ofxCvImage : public ofBaseImage {
     int gldepth;              // GL_UNSIGNED_BYTE, GL_UNSIGNED_SHORT, GL_FLOAT, ...
     int glchannels;           // GL_LUMINANCE, GL_RGB, GL_RGBA, ...
     
-    ofPixels pixels;	  // not width stepped for getPixels(), allocated on demand
-    ofPixels roiPixels;
+    unsigned char* 	pixels;	  // not width stepped for getPixels(), allocated on demand
+    int  pixelsWidth;
+    int  pixelsHeight;
     bool bPixelsDirty;        // pixels need to be reloaded
-    bool bRoiPixelsDirty;        // pixels need to be reloaded
     
     ofTexture  tex;		      // internal tex
     bool bUseTexture;

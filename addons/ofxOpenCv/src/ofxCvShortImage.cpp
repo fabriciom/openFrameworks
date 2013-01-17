@@ -32,7 +32,6 @@ void ofxCvShortImage::init() {
     gldepth = GL_UNSIGNED_SHORT;
     glchannels = GL_LUMINANCE;
     cvGrayscaleImage = NULL;
-    bShortPixelsDirty = true;
 }
 
 //--------------------------------------------------------------------------------
@@ -44,13 +43,6 @@ void ofxCvShortImage::clear() {
     }
     ofxCvImage::clear();    //call clear in base class
 }
-
-//--------------------------------------------------------------------------------
-void ofxCvShortImage::flagImageChanged() {
-    bShortPixelsDirty = true;
-    ofxCvImage::flagImageChanged();
-}
-
 
 //--------------------------------------------------------------------------------
 void ofxCvShortImage::convertShortToGray( IplImage* shortImg, IplImage* grayImg ) {
@@ -72,26 +64,14 @@ void ofxCvShortImage::convertGrayToShort( IplImage* grayImg, IplImage* shortImg 
 
 //-------------------------------------------------------------------------------------
 void ofxCvShortImage::set(float value){
-	if( !bAllocated ){
-		ofLog(OF_LOG_ERROR, "in set, image needs to be allocated");	
-		return;	
-	}
 	cvSet(cvImage, cvScalar(value));
     flagImageChanged();
 }
 
 //--------------------------------------------------------------------------------
-void ofxCvShortImage::setFromPixels( const unsigned char* _pixels, int w, int h ) {
+void ofxCvShortImage::setFromPixels( unsigned char* _pixels, int w, int h ) {
     // This sets the internal image ignoring any ROI
-	if( w == 0 || h == 0 ){
-		ofLog(OF_LOG_ERROR, "in setFromPixels, w and h cannot = 0");
-		return;
-	}
-    if( !bAllocated || w != width || h != height ) {
-		ofLog(OF_LOG_NOTICE, "in setFromPixels, reallocating to match dimensions");	
-		allocate(w,h);
-	}
-	
+
     if( w == width &&  h == height ) {
         ofRectangle lastROI = getROI();
         if(cvGrayscaleImage == NULL) {
@@ -114,17 +94,8 @@ void ofxCvShortImage::setFromPixels( const unsigned char* _pixels, int w, int h 
 }
 
 //--------------------------------------------------------------------------------
-void ofxCvShortImage::setRoiFromPixels( const unsigned char* _pixels, int w, int h ) {
-	if( w == 0 || h == 0 ){
-		ofLog(OF_LOG_ERROR, "in setFromPixels, w and h cannot = 0");
-		return;
-	}
-   	if(!bAllocated){
-		ofLog(OF_LOG_ERROR, "in setRoiFromPixels, image is not allocated");
-		return;
-	} 
-	
-	ofRectangle roi = getROI();
+void ofxCvShortImage::setRoiFromPixels( unsigned char* _pixels, int w, int h ) {
+    ofRectangle roi = getROI();
     ofRectangle inputROI = ofRectangle( roi.x, roi.y, w, h );
     ofRectangle iRoi = getIntersectionROI( roi, inputROI );
 
@@ -156,15 +127,6 @@ void ofxCvShortImage::operator = ( unsigned char* _pixels ) {
 void ofxCvShortImage::operator = ( const ofxCvGrayscaleImage& _mom ) {
     // cast non-const,  no worries, we will reverse any chages
     ofxCvGrayscaleImage& mom = const_cast<ofxCvGrayscaleImage&>(_mom);
-	if( mom.getWidth() == 0 || mom.getHeight() == 0 ){
-		ofLog(OF_LOG_ERROR, "in =, mom width or height is 0");	
-		return;	
-	}
-	if( !bAllocated ){
-		ofLog(OF_LOG_NOTICE, "in =, allocating to match dimensions");		
-		allocate(mom.getWidth(), mom.getHeight());
-	}
-	
 	if( matchingROI(getROI(), mom.getROI()) ) {
         convertGrayToShort(mom.getCvImage(), cvImage);
         flagImageChanged();
@@ -177,15 +139,6 @@ void ofxCvShortImage::operator = ( const ofxCvGrayscaleImage& _mom ) {
 void ofxCvShortImage::operator = ( const ofxCvColorImage& _mom ) {
     // cast non-const,  no worries, we will reverse any chages
     ofxCvColorImage& mom = const_cast<ofxCvColorImage&>(_mom);
-	if( mom.getWidth() == 0 || mom.getHeight() == 0 ){
-		ofLog(OF_LOG_ERROR, "in =, mom width or height is 0");	
-		return;	
-	}
-	if( !bAllocated ){
-		ofLog(OF_LOG_NOTICE, "in =, allocating to match dimensions");		
-		allocate(mom.getWidth(), mom.getHeight());
-	}
-	
 	if( matchingROI(getROI(), mom.getROI()) ) {
         if( cvGrayscaleImage == NULL ) {
             cvGrayscaleImage = cvCreateImage( cvSize(width,height), IPL_DEPTH_8U, 1 );
@@ -205,16 +158,7 @@ void ofxCvShortImage::operator = ( const ofxCvColorImage& _mom ) {
 void ofxCvShortImage::operator = ( const ofxCvFloatImage& _mom ) {
     // cast non-const,  no worries, we will reverse any chages
     ofxCvFloatImage& mom = const_cast<ofxCvFloatImage&>(_mom);
-	if( mom.getWidth() == 0 || mom.getHeight() == 0 ){
-		ofLog(OF_LOG_ERROR, "in =, mom width or height is 0");	
-		return;	
-	}
-	if( !bAllocated ){
-		ofLog(OF_LOG_NOTICE, "in =, allocating to match dimensions");		
-		allocate(mom.getWidth(), mom.getHeight());
-	}
-	
-	if( matchingROI(getROI(), mom.getROI()) ) {
+    if( matchingROI(getROI(), mom.getROI()) ) {
         rangeMap( mom.getCvImage(), cvImage,
                   mom.getNativeScaleMin(), mom.getNativeScaleMax(), 0, 65535.0f );
         flagImageChanged();
@@ -228,15 +172,6 @@ void ofxCvShortImage::operator = ( const ofxCvShortImage& _mom ) {
     if(this != &_mom) {  //check for self-assignment
         // cast non-const,  no worries, we will reverse any chages
         ofxCvShortImage& mom = const_cast<ofxCvShortImage&>(_mom);
-		if( mom.getWidth() == 0 || mom.getHeight() == 0 ){
-			ofLog(OF_LOG_ERROR, "in =, mom width or height is 0");	
-			return;	
-		}
-		if( !bAllocated ){
-			ofLog(OF_LOG_NOTICE, "in =, allocating to match dimensions");		
-			allocate(mom.getWidth(), mom.getHeight());
-		}
-	
         if( matchingROI(getROI(), mom.getROI()) ) {
             cvCopy( mom.getCvImage(), cvImage, 0 );
             flagImageChanged();
@@ -256,11 +191,6 @@ void ofxCvShortImage::operator = ( const IplImage* _mom ) {
 
 //--------------------------------------------------------------------------------
 void ofxCvShortImage::addWeighted( ofxCvGrayscaleImage& mom, float f ) {
-	if( !bAllocated ){
-		ofLog(OF_LOG_ERROR, "in addWeighted, image is not allocated");		
-		return;	
-	}
-	
 	if( matchingROI(getROI(), mom.getROI()) ) {
         convertGrayToShort(mom.getCvImage(), cvImageTemp);
         cvAddWeighted( cvImageTemp, f, cvImage, 1.0f-f,0, cvImage );
@@ -275,42 +205,82 @@ void ofxCvShortImage::addWeighted( ofxCvGrayscaleImage& mom, float f ) {
 // Get Pixel Data
 
 //--------------------------------------------------------------------------------
-IplImage*  ofxCvShortImage::getCv8BitsImage() {
-	if( !bAllocated ){
-		ofLog(OF_LOG_WARNING, "in getCv8BitsImage, image is not allocated");		
-	}
-	
-	if(bPixelsDirty) {
-		if( cvGrayscaleImage == NULL ) {
-			cvGrayscaleImage = cvCreateImage( cvSize(width,height), IPL_DEPTH_8U, 1 );
-		}
+unsigned char*  ofxCvShortImage::getPixels(){
+    // get pixels ignoring any ROI
 
-		ofRectangle lastROI = getROI();
+    if(bPixelsDirty) {
+        if( cvGrayscaleImage == NULL ) {
+            cvGrayscaleImage = cvCreateImage( cvSize(width,height), IPL_DEPTH_8U, 1 );
+        }
 
-		resetImageROI(cvGrayscaleImage);
-		convertShortToGray(cvImage, cvGrayscaleImage);
-		setROI(lastROI);
-	}
-	return cvGrayscaleImage;
+        ofRectangle lastROI = getROI();
+        
+        resetImageROI(cvGrayscaleImage);
+        convertShortToGray(cvImage, cvGrayscaleImage);
+        setROI(lastROI);
+
+        if(pixels == NULL) {
+            // we need pixels, allocate it
+            pixels = new unsigned char[width*height];
+            pixelsWidth = width;
+            pixelsHeight = height;
+        } else if(pixelsWidth != width || pixelsHeight != height) {
+            // ROI changed, reallocate pixels for new size
+            // this is needed because getRoiPixels() might change size of pixels
+            delete pixels;
+            pixels = new unsigned char[width*height];
+            pixelsWidth = width;
+            pixelsHeight = height;
+        }
+
+        // copy from ROI to pixels
+        for( int i = 0; i < height; i++ ) {
+            memcpy( pixels + (i*width),
+                    cvGrayscaleImage->imageData + (i*cvGrayscaleImage->widthStep),
+                    width );
+        }
+        bPixelsDirty = false;
+    }
+	return pixels;
+
 }
 
 //--------------------------------------------------------------------------------
-IplImage*  ofxCvShortImage::getCv8BitsRoiImage() {
-	if( !bAllocated ){
-		ofLog(OF_LOG_WARNING, "in getCv8BitsRoiImage, image is not allocated");		
-	}
-	
-	if(bPixelsDirty) {
-		if( cvGrayscaleImage == NULL ) {
-			cvGrayscaleImage = cvCreateImage( cvSize(width,height), IPL_DEPTH_8U, 1 );
-		}
+unsigned char*  ofxCvShortImage::getRoiPixels(){
+    if(bPixelsDirty) {
+        if( cvGrayscaleImage == NULL ) {
+            cvGrayscaleImage = cvCreateImage( cvSize(width,height), IPL_DEPTH_8U, 1 );
+        }
 
-		ofRectangle roi = getROI();
-		setImageROI(cvGrayscaleImage, roi);  //make sure ROI is in sync
-		convertShortToGray(cvImage, cvGrayscaleImage);
-	}
-	return cvGrayscaleImage;
+        ofRectangle roi = getROI();
+        setImageROI(cvGrayscaleImage, roi);  //make sure ROI is in sync
+        convertShortToGray(cvImage, cvGrayscaleImage);
+
+        if(pixels == NULL) {
+            // we need pixels, allocate it
+            pixels = new unsigned char[(int)(roi.width*roi.height)];
+            pixelsWidth = (int)roi.width;
+            pixelsHeight = (int)roi.height;
+        } else if(pixelsWidth != roi.width || pixelsHeight != roi.height) {
+            // ROI changed, reallocate pixels for new size
+            delete pixels;
+            pixels = new unsigned char[(int)(roi.width*roi.height)];
+            pixelsWidth = (int)roi.width;
+            pixelsHeight = (int)roi.height;
+        }
+
+        // copy from ROI to pixels
+        for( int i = 0; i < roi.height; i++ ) {
+            memcpy( pixels + (int)(i*roi.width),
+                    cvGrayscaleImage->imageData + ((int)(i+roi.y)*cvGrayscaleImage->widthStep) + (int)roi.x,
+                    (int)roi.width );
+        }
+        bPixelsDirty = false;
+    }
+	return pixels;
 }
+
+
 
 // Draw Image
 
@@ -319,11 +289,6 @@ IplImage*  ofxCvShortImage::getCv8BitsRoiImage() {
 
 //--------------------------------------------------------------------------------
 void ofxCvShortImage::contrastStretch() {
-	if( !bAllocated ){
-		ofLog(OF_LOG_ERROR, "in contrastStretch, image is not allocated");		
-		return;	
-	}
-	
 	double minVal, maxVal;
 	cvMinMaxLoc( cvImage, &minVal, &maxVal, NULL, NULL, 0 );
     rangeMap( cvImage, minVal,maxVal, 0,65535 );
@@ -332,11 +297,6 @@ void ofxCvShortImage::contrastStretch() {
 
 //--------------------------------------------------------------------------------
 void ofxCvShortImage::convertToRange(float min, float max ){
-	if( !bAllocated ){
-		ofLog(OF_LOG_ERROR, "in convertToRange, image is not allocated");		
-		return;	
-	}
-	
     rangeMap( cvImage, 0,65535, min,max);
     flagImageChanged();
 }
@@ -347,10 +307,6 @@ void ofxCvShortImage::convertToRange(float min, float max ){
 
 //--------------------------------------------------------------------------------
 void ofxCvShortImage::resize( int w, int h ) {
-	if( !bAllocated ){
-		ofLog(OF_LOG_ERROR, "in resize, image is not allocated");		
-		return;	
-	}
 
     // note, one image copy operation could be ommitted by
     // reusing the temporal image storage
@@ -365,16 +321,6 @@ void ofxCvShortImage::resize( int w, int h ) {
 
 //--------------------------------------------------------------------------------
 void ofxCvShortImage::scaleIntoMe( ofxCvImage& mom, int interpolationMethod ){
-	if( !bAllocated ){
-		ofLog(OF_LOG_ERROR, "in scaleIntoMe, image needs to be allocated");	
-		return;	
-	}
-	
-	if( !mom.bAllocated ){
-		ofLog(OF_LOG_ERROR, "in scaleIntoMe, mom needs to be allocated");	
-		return;	
-	}
-	
     //for interpolation you can pass in:
     //CV_INTER_NN - nearest-neigbor interpolation,
     //CV_INTER_LINEAR - bilinear interpolation (used by default)
@@ -399,36 +345,4 @@ void ofxCvShortImage::scaleIntoMe( ofxCvImage& mom, int interpolationMethod ){
     } else {
         ofLog(OF_LOG_ERROR, "in scaleIntoMe, mom image type has to match");
     }
-}
-
-ofShortPixels & ofxCvShortImage::getShortPixelsRef(){
-	if( !bAllocated ){
-		ofLog(OF_LOG_WARNING, "in getShortPixelsRef, image is not allocated");		
-	} else if(bShortPixelsDirty) {
-
-		//Note this possible introduces a bug where pixels doesn't contain the current image.
-		//Also it means that modifying the pointer return by get pixels - affects the internal cvImage
-		//Where as with the slower way below modifying the pointer doesn't change the image.
-		if(  cvImage->width*cvImage->depth/8 == cvImage->widthStep ){
-			shortPixels.setFromExternalPixels((unsigned short*)cvImage->imageData,width,height,cvImage->nChannels);
-		}else{
-			shortPixels.setFromAlignedPixels((unsigned short*)cvImage->imageData,width,height,cvImage->nChannels,cvImage->widthStep);
-		}
-		bShortPixelsDirty = false;
-	}
-	return shortPixels;
-
-}
-
-ofShortPixels & ofxCvShortImage::getRoiShortPixelsRef(){
-	if( !bAllocated ){
-		ofLog(OF_LOG_WARNING, "in getRoiShortPixelsRef, image is not allocated");		
-	} else if(bShortPixelsDirty) {
-		ofRectangle roi = getROI();
-		unsigned short * roi_ptr = (unsigned short*)cvImage->imageData + ((int)(roi.y)*cvImage->widthStep/(cvImage->depth/8) + (int)roi.x * cvImage->nChannels);
-		shortPixels.setFromAlignedPixels(roi_ptr,roi.width,roi.height,cvImage->nChannels,cvImage->widthStep);
-		bShortPixelsDirty = false;
-	}
-	return shortPixels;
-
 }
