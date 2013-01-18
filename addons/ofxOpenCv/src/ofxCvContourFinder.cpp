@@ -4,10 +4,10 @@
 
 
 //--------------------------------------------------------------------------------
-bool sort_carea_compare( const CvSeq* a, const CvSeq* b) {
+static bool sort_carea_compare( const CvSeq* a, const CvSeq* b) {
 	// use opencv to calc size, then sort based on size
-	float areaa = fabs(cvContourArea(a, CV_WHOLE_SEQ));
-	float areab = fabs(cvContourArea(b, CV_WHOLE_SEQ));
+	float areaa = cvContourArea(a, CV_WHOLE_SEQ);
+	float areab = cvContourArea(b, CV_WHOLE_SEQ);
 
     //return 0;
 	return (areaa > areab);
@@ -61,6 +61,7 @@ int ofxCvContourFinder::findContours( ofxCvGrayscaleImage&  input,
     // 320x240 image better to make two ofxCvContourFinder objects then to use
     // one, because you will get penalized less.
 
+    inputCopy.setUseTexture(false);
 	if( inputCopy.getWidth() == 0 ) {
 		inputCopy.allocate( _width, _height );
 	} else if( inputCopy.getWidth() != _width || inputCopy.getHeight() != _height ) {
@@ -69,8 +70,8 @@ int ofxCvContourFinder::findContours( ofxCvGrayscaleImage&  input,
         inputCopy.allocate( _width, _height );
 	}
 
-    inputCopy = input;
     inputCopy.setROI( input.getROI() );
+    inputCopy = input;
 
 	CvSeq* contour_list = NULL;
 	contour_storage = cvCreateMemStorage( 1000 );
@@ -84,7 +85,7 @@ int ofxCvContourFinder::findContours( ofxCvGrayscaleImage&  input,
 
 	// put the contours from the linked list, into an array for sorting
 	while( (contour_ptr != NULL) ) {
-		float area = fabs( cvContourArea(contour_ptr, CV_WHOLE_SEQ) );
+		float area = cvContourArea(contour_ptr, CV_WHOLE_SEQ);
 		if( (area > minArea) && (area < maxArea) ) {
             cvSeqBlobs.push_back(contour_ptr);
 		}
@@ -102,7 +103,7 @@ int ofxCvContourFinder::findContours( ofxCvGrayscaleImage&  input,
     // cvSeqBlobs let's get the data out and into our structures that we like
 	for( int i = 0; i < MIN(nConsidered, (int)cvSeqBlobs.size()); i++ ) {
 		blobs.push_back( ofxCvBlob() );
-		float area = cvContourArea( cvSeqBlobs[i], CV_WHOLE_SEQ );
+		float area = cvContourArea( cvSeqBlobs[i], CV_WHOLE_SEQ, true ); // oriented=true for holes
 		CvRect rect	= cvBoundingRect( cvSeqBlobs[i], 0 );
 		cvMoments( cvSeqBlobs[i], myMoments );
 
@@ -113,8 +114,8 @@ int ofxCvContourFinder::findContours( ofxCvGrayscaleImage&  input,
 		blobs[i].boundingRect.y           = rect.y;
 		blobs[i].boundingRect.width       = rect.width;
 		blobs[i].boundingRect.height      = rect.height;
-		blobs[i].centroid.x 			  = (int) (myMoments->m10 / myMoments->m00);
-		blobs[i].centroid.y 			  = (int) (myMoments->m01 / myMoments->m00);
+		blobs[i].centroid.x 			  = (myMoments->m10 / myMoments->m00);
+		blobs[i].centroid.y 			  = (myMoments->m01 / myMoments->m00);
 
 		// get the points for the blob:
 		CvPoint           pt;
@@ -156,8 +157,9 @@ void ofxCvContourFinder::draw( float x, float y, float w, float h ) {
         y -= anchor.y;
     }
 
+    ofPushStyle();
 	// ---------------------------- draw the bounding rectangle
-	ofSetColor(0xDD00CC);
+	ofSetHexColor(0xDD00CC);
     glPushMatrix();
     glTranslatef( x, y, 0.0 );
     glScalef( scalex, scaley, 0.0 );
@@ -169,7 +171,7 @@ void ofxCvContourFinder::draw( float x, float y, float w, float h ) {
 	}
 
 	// ---------------------------- draw the blobs
-	ofSetColor(0x00FFFF);
+	ofSetHexColor(0x00FFFF);
 
 	for( int i=0; i<(int)blobs.size(); i++ ) {
 		ofNoFill();
@@ -181,6 +183,18 @@ void ofxCvContourFinder::draw( float x, float y, float w, float h ) {
 
 	}
 	glPopMatrix();
+	ofPopStyle();
+}
+
+
+//----------------------------------------------------------
+void ofxCvContourFinder::draw(const ofPoint & point){
+	draw(point.x, point.y);
+}
+
+//----------------------------------------------------------
+void ofxCvContourFinder::draw(const ofRectangle & rect){
+	draw(rect.x, rect.y, rect.width, rect.height);
 }
 
 //--------------------------------------------------------------------------------
