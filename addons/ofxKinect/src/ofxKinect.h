@@ -33,6 +33,7 @@
 
 #include "ofMain.h"
 #include "libfreenect.h"
+
 #include "ofxBase3DVideo.h"
 
 #if defined(_MSC_VER) || defined(_WIN32) || defined(WIN32) || defined(__MINGW32__)
@@ -89,6 +90,9 @@ public:
 	bool open(int id=-1);
 	
 	/// open using a kinect unique serial number
+	///
+	/// NOTE: currently, libfreenect returns a serial number with all 0s for
+	/// kinect models > 1414, so this will only work with the original xbox kinect
 	bool open(string serial);
 
 	/// close the connection and stop grabbing images
@@ -99,6 +103,8 @@ public:
 
 	/// is the current frame new?
 	bool isFrameNew();
+	bool isFrameNewVideo();
+	bool isFrameNewDepth();
 
 	/// updates the pixel buffers and textures
 	///
@@ -117,6 +123,25 @@ public:
 	ofVec3f getWorldCoordinateAt(int cx, int cy);
 	ofVec3f getWorldCoordinateAt(float cx, float cy, float wz);
 
+/// \section Intrinsic IR Sensor Parameters
+
+	/// these values are used when depth registration is enabled to align the
+	/// depth image to the rgb image, see http://www.ros.org/wiki/kinect_calibration/technical
+	///
+	/// they could also be useful for real world accurate point clouds ... weee!
+	
+	/// get the distance between the IR sensor and IR emitter in cm
+	float getSensorEmitterDistance();
+	
+	/// get the distance between the IR sensor and the RGB camera in cm
+	float getSensorCameraDistance();
+	
+	/// get the size of a single pixel on the zero plane in mm
+	float getZeroPlanePixelSize();
+	
+	/// get the focal length of the IR sensor in mm
+	float getZeroPlaneDistance();
+
 /// \section RGB Data
 
 	/// get the RGB value for a depth point
@@ -124,32 +149,6 @@ public:
 	/// see setRegistration() for calibrated depth->RGB points
 	ofColor getColorAt(int x, int y);
 	ofColor getColorAt(const ofPoint & p);
-
-/// \section Accelerometer Data
-
-	/// get the XYZ accelerometer values
-	///
-	/// ... yes, the kinect has an accelerometer
-	
-	/// raw axis values
-	ofPoint getRawAccel();
-	
-	/// axis-based gravity adjusted accelerometer values
-	///
-	/// from libfreeenect:
-	///
-	/// as laid out via the accelerometer data sheet, which is available at
-	///
-	/// http://www.kionix.com/Product%20Sheets/KXSD9%20Product%20Brief.pdf
-	///
-	ofPoint getMksAccel();
-
-    /// get the current pitch (x axis) & roll (z axis) of the kinect in degrees
-    ///
-    /// useful to correct the 3d scene based on the camera inclination
-    ///
-	float getAccelPitch();
-	float getAccelRoll();
 
 /// \section Pixel Data
 
@@ -201,7 +200,42 @@ public:
 	float getNearClipping();
 	float getFarClipping();
 
-/// \section Camera Tilt
+/// \section Query Capabilities
+
+	/// check for device capabilites ...
+	/// motor, led, or accelerometer control isn't currently supported 
+	/// by libfreenect with newer Kinect models (> 1414)
+	bool hasAccelControl();
+	bool hasCamTiltControl();
+	bool hasLedControl();
+
+/// \section Accelerometer Data
+
+	/// get the XYZ accelerometer values
+	///
+	/// ... yes, the kinect has an accelerometer
+	
+	/// raw axis values
+	ofPoint getRawAccel();
+	
+	/// axis-based gravity adjusted accelerometer values
+	///
+	/// from libfreeenect:
+	///
+	/// as laid out via the accelerometer data sheet, which is available at
+	///
+	/// http://www.kionix.com/Product%20Sheets/KXSD9%20Product%20Brief.pdf
+	///
+	ofPoint getMksAccel();
+
+    /// get the current pitch (x axis) & roll (z axis) of the kinect in degrees
+    ///
+    /// useful to correct the 3d scene based on the camera inclination
+    ///
+	float getAccelPitch();
+	float getAccelRoll();
+
+/// \section Camera Tilt Motor
 
 	/// set tilt angle of the camera in degrees
 	/// 0 is flat, the range is -30 to 30
@@ -212,6 +246,22 @@ public:
 
 	/// get the target angle (if the camera is currently moving)
 	float getTargetCameraTiltAngle();
+        
+/// \section LED
+    
+	enum LedMode {
+		LED_DEFAULT = -1, // yellow when not running, green when running
+		LED_OFF = 0,
+		LED_GREEN = 1,
+		LED_RED = 2,
+		LED_YELLOW = 3,
+		LED_BLINK_GREEN = 4,
+		LED_BLINK_YELLOW_RED = 6
+	};
+	
+    /// set the current led color and/or blink mode,
+	/// only applied while the kinect is open
+    void setLed(ofxKinect::LedMode mode);
 
 /// \section Draw
 
@@ -238,6 +288,9 @@ public:
 	
 	/// get the unique serial number
 	/// returns an empty string "" if not connected
+	///
+	/// NOTE: currently, libfreenect returns a serial number with all 0s for
+	/// kinect models > 1414, so this will only work with the original xbox kinect
 	string getSerial();
 
 	/// static kinect image size
@@ -293,6 +346,12 @@ protected:
 	float targetTiltAngleDeg;
 	float currentTiltAngleDeg;
 	bool bTiltNeedsApplying;
+    
+    int currentLed;
+    bool bLedNeedsApplying;
+    bool bHasMotorControl; // cam tilt motor
+	//bool bHasAccelContol; // for future use
+	//bool bHasLedControl; // for future use
 	
 	// for auto connect tries
 	float timeSinceOpen;
@@ -309,6 +368,8 @@ private:
 
 	freenect_device* kinectDevice;      ///< kinect device handle
 
+	ofShortPixels depthPixelsRawIntra;	///< depth back
+	ofPixels videoPixelsIntra;			///< rgb back
 	ofShortPixels depthPixelsRawBack;	///< depth back
 	ofPixels videoPixelsBack;			///< rgb back
 
@@ -316,9 +377,8 @@ private:
 	void updateDepthLookupTable();
 	void updateDepthPixels();
 
-	bool bIsFrameNew;
-	bool bNeedsUpdate;
-	bool bUpdateTex;
+	bool bIsFrameNewVideo, bIsFrameNewDepth;
+	bool bNeedsUpdateVideo, bNeedsUpdateDepth;
 	bool bGrabVideo;
 	bool bUseRegistration;
 	bool bNearWhite;
