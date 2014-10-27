@@ -14,7 +14,7 @@
 #ifdef TARGET_OSX
     #include <OpenGL/OpenGL.h>
 	#include "../../../libs/glut/lib/osx/GLUT.framework/Versions/A/Headers/glut.h"
-	#include <Carbon/Carbon.h>
+    #include <Cocoa/Cocoa.h>
 #endif
 #ifdef TARGET_LINUX
 	#include <GL/glut.h>
@@ -28,7 +28,7 @@ void ofGLReadyCallback();
 
 // glut works with static callbacks UGH, so we need static variables here:
 
-static int			windowMode;
+static ofWindowMode windowMode;
 static bool			bNewScreenMode;
 static int			buttonInUse;
 static bool			bEnableSetupScreen;
@@ -214,7 +214,7 @@ void ofAppGlutWindow::setDoubleBuffering(bool _bDoubleBuffered){
 
 
 //------------------------------------------------------------
-void ofAppGlutWindow::setupOpenGL(int w, int h, int screenMode){
+void ofAppGlutWindow::setupOpenGL(int w, int h, ofWindowMode screenMode){
 
 	int argc = 1;
 	char *argv = (char*)"openframeworks";
@@ -319,10 +319,10 @@ void ofAppGlutWindow::initializeWindow(){
 		ofPixels iconPixels;
 		#ifdef DEBUG
 			iconPixels.allocate(ofIconDebug.width,ofIconDebug.height,ofIconDebug.bytes_per_pixel);
-			GIMP_IMAGE_RUN_LENGTH_DECODE(iconPixels.getPixels(),ofIconDebug.rle_pixel_data,iconPixels.getWidth()*iconPixels.getHeight(),ofIconDebug.bytes_per_pixel);
+			GIMP_IMAGE_RUN_LENGTH_DECODE(iconPixels.getData(),ofIconDebug.rle_pixel_data,iconPixels.getWidth()*iconPixels.getHeight(),ofIconDebug.bytes_per_pixel);
 		#else
 			iconPixels.allocate(ofIcon.width,ofIcon.height,ofIcon.bytes_per_pixel);
-			GIMP_IMAGE_RUN_LENGTH_DECODE(iconPixels.getPixels(),ofIcon.rle_pixel_data,iconPixels.getWidth()*iconPixels.getHeight(),ofIcon.bytes_per_pixel);
+			GIMP_IMAGE_RUN_LENGTH_DECODE(iconPixels.getData(),ofIcon.rle_pixel_data,iconPixels.getWidth()*iconPixels.getHeight(),ofIcon.bytes_per_pixel);
 		#endif
 		setWindowIcon(iconPixels);
     }
@@ -356,6 +356,7 @@ void ofAppGlutWindow::setWindowIcon(const ofPixels & iconPixels){
 
 	XChangeProperty(m_display, m_window, XInternAtom(m_display, "_NET_WM_ICON", False), XA_CARDINAL, 32,
 						 PropModeReplace,  (const unsigned char*)buffer,  length);
+	delete[] buffer;
 	XFlush(m_display);
 }
 #endif
@@ -460,7 +461,7 @@ void ofAppGlutWindow::showCursor(){
 }
 
 //------------------------------------------------------------
-int ofAppGlutWindow::getWindowMode(){
+ofWindowMode ofAppGlutWindow::getWindowMode(){
 	return windowMode;
 }
 
@@ -575,14 +576,10 @@ void ofAppGlutWindow::display(void){
 				glutFullScreen();
 
 				#ifdef TARGET_OSX
-					SetSystemUIMode(kUIModeAllHidden,NULL);
+					[NSApp setPresentationOptions:NSApplicationPresentationHideMenuBar | NSApplicationPresentationHideDock];
 					#ifdef MAC_OS_X_VERSION_10_7 //needed for Lion as when the machine reboots the app is not at front level
 						if( ofGetFrameNum() <= 10 ){  //is this long enough? too long?
-							ProcessSerialNumber psn;							
-							OSErr err = GetCurrentProcess( &psn );
-							if ( err == noErr ){
-								SetFrontProcess( &psn );
-							}
+							[[NSApplication sharedApplication] activateIgnoringOtherApps:YES];
 						}
 					#endif
 				#endif
@@ -600,50 +597,28 @@ void ofAppGlutWindow::display(void){
 				//----------------------------------------------------
 
 				#ifdef TARGET_OSX
-					SetSystemUIMode(kUIModeNormal,NULL);
+					[NSApp setPresentationOptions:NSApplicationPresentationDefault];
 				#endif
 			}
 			bNewScreenMode = false;
 		}
 	}
 
-
-	ofPtr<ofGLProgrammableRenderer> renderer = ofGetGLProgrammableRenderer();
-	if(renderer){
-		renderer->startRender();
-	}
-
-	// set viewport, clear the screen
-	ofViewport();		// used to be glViewport( 0, 0, width, height );
-	float * bgPtr = ofBgColorPtr();
-	bool bClearAuto = ofbClearBg();
-
-    // to do non auto clear on PC for now - we do something like "single" buffering --
-    // it's not that pretty but it work for the most part
-
-    #ifdef TARGET_WIN32
-    if (bClearAuto == false){
-        glDrawBuffer (GL_FRONT);
-    }
-    #endif
-
-	if ( bClearAuto == true || ofGetFrameNum() < 3){
-		ofClear(bgPtr[0]*255,bgPtr[1]*255,bgPtr[2]*255, bgPtr[3]*255);
-	}
+	ofGetCurrentRenderer()->startRender();
 
 	if( bEnableSetupScreen )ofSetupScreen();
 
 	ofNotifyDraw();
 
     #ifdef TARGET_WIN32
-    if (bClearAuto == false){
+    if (ofGetCurrentRenderer()->getBackgroundAuto() == false){
         // on a PC resizing a window with this method of accumulation (essentially single buffering)
         // is BAD, so we clear on resize events.
         if (nFramesSinceWindowResized < 3){
-        	ofClear(bgPtr[0]*255,bgPtr[1]*255,bgPtr[2]*255, bgPtr[3]*255);
+			ofGetCurrentRenderer()->clear();
         } else {
             if ( (ofGetFrameNum() < 3 || nFramesSinceWindowResized < 3) && bDoubleBuffered)    glutSwapBuffers();
-            else                                                     glFlush();
+            else  glFlush();
         }
     } else {
         if(bDoubleBuffered){
@@ -653,10 +628,10 @@ void ofAppGlutWindow::display(void){
 		}
     }
     #else
-		if (bClearAuto == false){
+		if (ofGetCurrentRenderer()->getBackgroundAuto() == false){
 			// in accum mode resizing a window is BAD, so we clear on resize events.
 			if (nFramesSinceWindowResized < 3){
-				ofClear(bgPtr[0]*255,bgPtr[1]*255,bgPtr[2]*255, bgPtr[3]*255);
+				ofGetCurrentRenderer()->clear();
 			}
 		}
 		if(bDoubleBuffered){
@@ -666,9 +641,7 @@ void ofAppGlutWindow::display(void){
 		}
     #endif
 
-	if(renderer){
-		renderer->finishRender();
-	}
+	ofGetCurrentRenderer()->finishRender();
 
     nFramesSinceWindowResized++;
 

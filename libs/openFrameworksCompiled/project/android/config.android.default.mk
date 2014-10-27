@@ -31,18 +31,9 @@
 
 include $(OF_ROOT)/libs/openFrameworksCompiled/project/android/paths.make
 ARCH = android
-ifeq ($(shell uname),Darwin)
-	HOST_PLATFORM = darwin-x86
-else ifneq (,$(findstring MINGW32_NT,$(shell uname)))
-	HOST_PLATFORM = windows
-	PWD = $(shell pwd)
-else
-	HOST_PLATFORM = linux-$(shell uname -m)
-endif
-
 
 ifndef ABIS_TO_COMPILE_RELEASE
-	ABIS_TO_COMPILE_RELEASE = armv5 armv7 neon x86
+	ABIS_TO_COMPILE_RELEASE = armv7 neon x86
 endif
 
 ifndef ABIS_TO_COMPILE_DEBUG
@@ -91,6 +82,23 @@ else
 ANDROID_PREFIX=arm-linux-androideabi-
 TOOLCHAIN=$(ANDROID_PREFIX)$(GCC_VERSION)
 SYSROOT=$(NDK_ROOT)/platforms/$(NDK_PLATFORM)/arch-arm/
+endif
+
+ifeq ($(shell uname),Darwin)
+ifneq ($(wildcard $(NDK_ROOT)/toolchains/$(TOOLCHAIN)/prebuilt/darwin-x86_64),)
+	HOST_PLATFORM = darwin-x86_64
+else
+	HOST_PLATFORM = darwin-x86
+endif
+else ifneq (,$(findstring MINGW32_NT,$(shell uname)))
+	HOST_PLATFORM = windows
+	PWD = $(shell pwd)
+else
+ifneq ($(wildcard $(NDK_ROOT)/toolchains/$(TOOLCHAIN)/prebuilt/linux-x86_64),)
+	HOST_PLATFORM = linux-x86_64
+else
+	HOST_PLATFORM = linux-x86
+endif
 endif
 
 TOOLCHAIN_PATH=$(NDK_ROOT)/toolchains/$(TOOLCHAIN)/prebuilt/$(HOST_PLATFORM)/bin/
@@ -159,7 +167,7 @@ PLATFORM_REQUIRED_ADDONS = ofxAndroid
 ################################################################################
 
 # Warning Flags (http://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html)
-PLATFORM_CFLAGS = -Wall
+PLATFORM_CFLAGS = -Wall -std=c++11
 
 # Code Generation Option Flags (http://gcc.gnu.org/onlinedocs/gcc/Code-Gen-Options.html)
 PLATFORM_CFLAGS += -nostdlib --sysroot=$(SYSROOT) -fno-short-enums
@@ -242,6 +250,7 @@ PLATFORM_CORE_EXCLUSIONS += $(OF_LIBS_PATH)/openFrameworks/video/ofQtUtils.cpp
 PLATFORM_CORE_EXCLUSIONS += $(OF_LIBS_PATH)/openFrameworks/video/ofQuickTimeGrabber.cpp
 PLATFORM_CORE_EXCLUSIONS += $(OF_LIBS_PATH)/openFrameworks/video/ofQuickTimePlayer.cpp
 PLATFORM_CORE_EXCLUSIONS += $(OF_LIBS_PATH)/openFrameworks/video/ofDirectShowGrabber.cpp
+PLATFORM_CORE_EXCLUSIONS += $(OF_LIBS_PATH)/openFrameworks/video/ofDirectShowPlayer.cpp
 PLATFORM_CORE_EXCLUSIONS += $(OF_LIBS_PATH)/openFrameworks/video/ofGstUtils.cpp
 PLATFORM_CORE_EXCLUSIONS += $(OF_LIBS_PATH)/openFrameworks/video/ofGstVideoGrabber.cpp
 PLATFORM_CORE_EXCLUSIONS += $(OF_LIBS_PATH)/openFrameworks/video/ofGstVideoPlayer.cpp
@@ -325,6 +334,7 @@ PLATFORM_HEADER_SEARCH_PATHS += "$(OF_ROOT)/addons/ofxAndroid/src"
 ################################################################################
 
 PLATFORM_LIBRARIES = 
+PLATFORM_LIBRARIES += OpenSLES
 PLATFORM_LIBRARIES += supc++ 
 PLATFORM_LIBRARIES += z 
 PLATFORM_LIBRARIES += GLESv1_CM 
@@ -416,6 +426,9 @@ PLATFORM_CC=$(NDK_ROOT)/toolchains/$(TOOLCHAIN)/prebuilt/$(HOST_PLATFORM)/bin/$(
 PLATFORM_CXX=$(NDK_ROOT)/toolchains/$(TOOLCHAIN)/prebuilt/$(HOST_PLATFORM)/bin/$(ANDROID_PREFIX)g++
 PLATFORM_AR=$(NDK_ROOT)/toolchains/$(TOOLCHAIN)/prebuilt/$(HOST_PLATFORM)/bin/$(ANDROID_PREFIX)ar
 
+#ifeq (,$(findstring MINGW32_NT,$(shell uname)))
+ZIPWINDOWS=..\\..\\..\\..\\..\\libs\\openFrameworksCompiled\\project\\android\\windows\\zip -r ../../res/raw/$(RESFILE)
+#endif
 
 afterplatform:$(RESFILE)
 	@if [ -f obj/$(BIN_NAME) ]; then rm obj/$(BIN_NAME); fi
@@ -520,7 +533,12 @@ $(RESFILE): $(DATA_FILES)
 		mkdir -p res/raw; \
 		rm res/raw/$(RESNAME).zip; \
 		cd bin/data; \
-		zip -r ../../res/raw/$(RESNAME).zip *; \
+		if [ "$(HOST_PLATFORM)" = "windows" ]; then \
+			echo "Windows Platform. Running Zip..."; \
+			cmd //c $(ZIPWINDOWS) * && exit; \
+		else \
+			zip -r ../../res/raw/$(RESNAME).zip *; \
+		fi; \
 		cd ../..; \
 	fi
 
@@ -537,7 +555,12 @@ install:
 		mkdir -p res/raw; \
 		rm res/raw/$(RESNAME).zip; \
 		cd bin/data; \
-		zip -r ../../res/raw/$(RESNAME).zip *; \
+		if [ "$(HOST_PLATFORM)" = "windows" ]; then \
+			echo "Windows Platform. Running Zip..."; \
+			cmd //c $(ZIPWINDOWS) * && exit; \
+		else \
+			zip -r ../../res/raw/$(RESNAME).zip; *; \
+		fi; \
 		cd ../..; \
 	fi 
 	if [ -f obj/$(BIN_NAME) ]; then rm obj/$(BIN_NAME); fi

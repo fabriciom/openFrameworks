@@ -240,6 +240,9 @@ ofAppEGLWindow::Settings::Settings() {
 
 //------------------------------------------------------------
 ofAppEGLWindow::ofAppEGLWindow() {
+  keyboardDetected = false;
+  mouseDetected	= false;
+  threadTimeout = ofThread::INFINITE_JOIN_TIMEOUT;
   init();
 }
 
@@ -250,7 +253,6 @@ ofAppEGLWindow::ofAppEGLWindow(Settings _settings) {
 
 //------------------------------------------------------------
 ofAppEGLWindow::~ofAppEGLWindow() {
-  ofRemoveListener(ofEvents().exit, this, &ofAppEGLWindow::exit);
 }
 
 //------------------------------------------------------------
@@ -361,22 +363,6 @@ void ofAppEGLWindow::init(Settings _settings) {
     ////////////////
 
     initNative();
-
-    ofAddListener(ofEvents().exit, this, &ofAppEGLWindow::exit);
-}
-
-//------------------------------------------------------------
-void ofAppEGLWindow::exit(ofEventArgs &e) {
-  terminate = true; // TODO, it is unlikely that this will happen
-  if(!isUsingX11) {
-    destroyNativeEvents();
-  }   
-
-  // we got a terminate ... so clean up.
-  destroySurface();
-  destroyWindow();
-
-  exitNative();
 }
 
 //------------------------------------------------------------
@@ -437,7 +423,7 @@ void ofAppEGLWindow::setGLESVersion(int _glesVersion){
 }
 
 //------------------------------------------------------------
-void ofAppEGLWindow::setupOpenGL(int w, int h, int screenMode) {
+void ofAppEGLWindow::setupOpenGL(int w, int h, ofWindowMode screenMode) {
 
     // we set this here, and if we need to make a fullscreen 
     // app, we do it during the first loop.
@@ -792,7 +778,20 @@ void ofAppEGLWindow::runAppViaInfiniteLoop(ofBaseApp *appPtr) {
       display();
     }
 
+    if(!isUsingX11) {
+    	destroyNativeEvents();
+    }
+
+    // we got a terminate ... so clean up.
+    destroySurface();
+    destroyWindow();
+
+    exitNative();
     ofLogNotice("ofAppEGLWindow") << "runAppViaInfiniteLoop(): exiting infinite loop";
+}
+
+void ofAppEGLWindow::windowShouldClose(){
+	terminate = true;
 }
 
 //------------------------------------------------------------
@@ -808,7 +807,7 @@ void ofAppEGLWindow::destroyNativeEvents() {
   destroyNativeUDev();
   destroyNativeMouse(); 
   destroyNativeKeyboard(); 
-  waitForThread(true);
+  waitForThread(true, threadTimeout);
 }
 
 //------------------------------------------------------------
@@ -1140,7 +1139,7 @@ void ofAppEGLWindow::setWindowShape(int w, int h){
 }
 
 //------------------------------------------------------------
-int ofAppEGLWindow::getWindowMode(){
+ofWindowMode ofAppEGLWindow::getWindowMode(){
   return windowMode;
 }
 
@@ -1187,36 +1186,24 @@ void ofAppEGLWindow::idle() {
 
 //------------------------------------------------------------
 void ofAppEGLWindow::display() {
-
+	eglMakeCurrent(eglDisplay,
+        eglSurface, // draw surface
+        eglSurface, // read surface
+        eglContext);
   // take care of any requests for a new screen mode
-  if (windowMode != OF_GAME_MODE){
-    if ( bNewScreenMode ){
-      if( windowMode == OF_FULLSCREEN){
-        setWindowRect(getScreenRect());
-      } else if( windowMode == OF_WINDOW ){
-        setWindowRect(nonFullscreenWindowRect);
-      }
-      bNewScreenMode = false;
+  if (windowMode != OF_GAME_MODE && bNewScreenMode){
+    if( windowMode == OF_FULLSCREEN){
+      setWindowRect(getScreenRect());
+    } else if( windowMode == OF_WINDOW ){
+      setWindowRect(nonFullscreenWindowRect);
     }
+    bNewScreenMode = false;
   }
 
   ///////////////////////////////////////////////////////////////////////////////////////
   // set viewport, clear the screen
  
-  ofPtr<ofGLProgrammableRenderer> renderer = ofGetGLProgrammableRenderer();
-  if(renderer){
-   renderer->startRender();
-  }
-
-  ofViewport(0, 0, getWindowWidth(), getWindowHeight());    // used to be glViewport( 0, 0, width, height );
-  
-  float * bgPtr = ofBgColorPtr();
-  bool bClearAuto = ofbClearBg();
-
-  if ( bClearAuto == true || ofGetFrameNum() < 3){
-    ofClear(bgPtr[0]*255,bgPtr[1]*255,bgPtr[2]*255, bgPtr[3]*255);
-  }
-
+  ofGetCurrentRenderer()->startRender();
   if( bEnableSetupScreen ) ofSetupScreen(); // this calls into the current renderer (ofSetupScreenPerspective)
 
   ofNotifyDraw();
@@ -1256,11 +1243,8 @@ void ofAppEGLWindow::display() {
 
     }
    }
- 
-  if(renderer) {
-    renderer->finishRender();
-  }
-  
+  ofGetCurrentRenderer()->finishRender();
+
   EGLBoolean success = eglSwapBuffers(eglDisplay, eglSurface);
   if(!success) {
        GLint error = eglGetError();
@@ -1362,7 +1346,10 @@ void ofAppEGLWindow::setupNativeMouse() {
 
     if(mouse_fd < 0) {
         ofLogError("ofAppEGLWindow") << "setupMouse(): did not open mouse, mouse_fd < 0";
-    }
+    }else {
+        mouseDetected = true;
+	}
+
 
 }
 
@@ -1378,6 +1365,7 @@ void ofAppEGLWindow::setupNativeKeyboard() {
         devicePathBuffer.append(eps[0]->d_name);
         keyboard_fd = open(devicePathBuffer.c_str(), O_RDONLY | O_NONBLOCK);
         ofLogNotice("ofAppEGLWindow") << "setupKeyboard(): keyboard_fd= " <<  keyboard_fd << " devicePath=" << devicePathBuffer;
+		
     } else {
         ofLogWarning("ofAppEGLWindow") << "setupKeyboard(): unabled to find keyboard";
     }
@@ -1405,7 +1393,9 @@ void ofAppEGLWindow::setupNativeKeyboard() {
     
     if(keyboard_fd < 0) {
         ofLogError("ofAppEGLWindow") << "setupKeyboard(): did not open keyboard, keyboard_fd < 0";
-    }
+    }else {
+        keyboardDetected = true;
+	}
 }
 
 //------------------------------------------------------------

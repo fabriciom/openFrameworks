@@ -31,7 +31,7 @@ void ofApp::setup() {
 	//billboardVbo.setVertexData(billboardVerts, NUM_BILLBOARDS, GL_DYNAMIC_DRAW);
 	//billboardVbo.setColorData(billboardColor, NUM_BILLBOARDS, GL_DYNAMIC_DRAW);
 	
-	// load the bilboard shader 
+	// load the billboard shader
 	// this is used to change the
 	// size of the particle
 	if(ofGetGLProgrammableRenderer()){
@@ -42,7 +42,7 @@ void ofApp::setup() {
 	
 	// we need to disable ARB textures in order to use normalized texcoords
 	ofDisableArbTex();
-	texture.loadImage("dot.png");
+	texture.load("dot.png");
 	ofEnableAlphaBlending();
 }
 
@@ -97,9 +97,9 @@ void ofApp::draw() {
 	billboardShader.begin();
 	
 	ofEnablePointSprites(); // not needed for GL3/4
-	texture.getTextureReference().bind();
+	texture.getTexture().bind();
 	billboards.draw();
-	texture.getTextureReference().unbind();
+	texture.getTexture().unbind();
 	ofDisablePointSprites(); // not needed for GL3/4
 	
 	billboardShader.end();

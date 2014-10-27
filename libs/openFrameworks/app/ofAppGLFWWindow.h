@@ -17,14 +17,16 @@
 //class ofVec3f;
 class ofBaseApp;
 
-class ofAppGLFWWindow : public ofAppBaseWindow {
-
-	static GLFWwindow* windowP;
+#ifdef TARGET_OPENGLES
+class ofAppGLFWWindow : public ofAppBaseGLESWindow{
+#else
+class ofAppGLFWWindow : public ofAppBaseGLWindow {
+#endif
 
 public:
 
 	ofAppGLFWWindow();
-	~ofAppGLFWWindow(){}
+	~ofAppGLFWWindow();
 
 
 	// window settings, this functions can be called from main before calling ofSetupOpenGL
@@ -43,10 +45,16 @@ public:
 
 
     // this functions are only meant to be called from inside OF don't call them from your code
+
+#ifdef TARGET_OPENGLES
+	void setGLESVersion(int glesVersion);
+#else
 	void setOpenGLVersion(int major, int minor);
-	void setupOpenGL(int w, int h, int screenMode);
+#endif
+	void setupOpenGL(int w, int h, ofWindowMode screenMode);
 	void initializeWindow();
 	void runAppViaInfiniteLoop(ofBaseApp * appPtr);
+	void windowShouldClose();
 
 
 	void hideCursor();
@@ -54,6 +62,8 @@ public:
 
 	int getHeight();
 	int getWidth();
+    
+    GLFWwindow* getGLFWWindow();
 
 	ofVec3f		getWindowSize();
 	ofVec3f		getScreenSize();
@@ -66,7 +76,7 @@ public:
 	void			setOrientation(ofOrientation orientation);
 	ofOrientation	getOrientation();
 
-	int			getWindowMode();
+	ofWindowMode	getWindowMode();
 
 	void		setFullscreen(bool fullscreen);
 	void		toggleFullscreen();
@@ -75,6 +85,11 @@ public:
 	void		disableSetupScreen();
 
 	void		setVerticalSync(bool bSync);
+
+    void        setClipboardString(const string& text);
+    string      getClipboardString();
+
+    int         getPixelScreenCoordScale();
 
 #if defined(TARGET_LINUX) && !defined(TARGET_RASPBERRY_PI)
 	Display* 	getX11Display();
@@ -102,16 +117,20 @@ public:
 #endif
 
 private:
+	// private copy construction
+	ofAppGLFWWindow(ofAppGLFWWindow & w){};
+	ofAppGLFWWindow & operator=(ofAppGLFWWindow & w){return w;};
+
 	// callbacks
 	void			display(void);
 
 	static void 	mouse_cb(GLFWwindow* windowP_, int button, int state, int mods);
 	static void 	motion_cb(GLFWwindow* windowP_, double x, double y);
-	static void 	keyboard_cb(GLFWwindow* windowP_, int key, int scancode, int action, int mods);
+	static void 	keyboard_cb(GLFWwindow* windowP_, int key, int scancode, unsigned int codepoint, int action, int mods);
 	static void 	resize_cb(GLFWwindow* windowP_, int w, int h);
 	static void 	exit_cb(GLFWwindow* windowP_);
 	static void		scroll_cb(GLFWwindow* windowP_, double x, double y);
-	static void 	drop_cb(GLFWwindow* windowP_, const char* dropString);
+	static void 	drop_cb(GLFWwindow* windowP_, int numFiles, const char** dropString);
 	static void		error_cb(int errorCode, const char* errorDescription);
 	static void 	exitApp();
 
@@ -124,7 +143,7 @@ private:
 	int				samples;
 	int				rBits,gBits,bBits,aBits,depthBits,stencilBits;
 
-	int				windowMode;
+	ofWindowMode	windowMode;
 
 	bool			bEnableSetupScreen;
 
@@ -145,11 +164,15 @@ private:
 	int 			nFramesSinceWindowResized;
 	bool			bDoubleBuffered;
     bool            bMultiWindowFullscreen; 
+
+	GLFWwindow* 	windowP;
     
 	int				getCurrentMonitor();
 	
 	static ofAppGLFWWindow	* instance;
 	static ofBaseApp *	ofAppPtr;
+
+    int pixelScreenCoordScale; 
 
 	ofOrientation orientation;
 

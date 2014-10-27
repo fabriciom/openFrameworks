@@ -15,7 +15,7 @@ public:
 	void saveToFile(string filename);
 	void loadFromFile(string filename);
 	
-	void setDefaultSerializer(ofPtr<ofBaseFileSerializer> serializer);
+	void setDefaultSerializer(std::shared_ptr<ofBaseFileSerializer> serializer);
 
 	virtual void saveTo(ofBaseSerializer& serializer);
 	virtual void loadFrom(ofBaseSerializer& serializer);
@@ -59,26 +59,29 @@ public:
 	virtual ofAbstractParameter & getParameter() = 0;
 	static void loadFont(string filename, int fontsize, bool _bAntiAliased=true, bool _bFullCharacterSet=false, int dpi=0);
 	static void setUseTTF(bool bUseTTF);
-
+    
+    void registerMouseEvents();
+    void unregisterMouseEvents();
 
 	virtual bool mouseMoved(ofMouseEventArgs & args) = 0;
 	virtual bool mousePressed(ofMouseEventArgs & args) = 0;
 	virtual bool mouseDragged(ofMouseEventArgs & args) = 0;
 	virtual bool mouseReleased(ofMouseEventArgs & args) = 0;
+	virtual bool mouseScrolled(ofMouseEventArgs & args) = 0;
 protected:
 	virtual void render()=0;
 	bool isGuiDrawing();
 	virtual bool setValue(float mx, float my, bool bCheckBounds) = 0;
 	void bindFontTexture();
 	void unbindFontTexture();
-	ofMesh & getTextMesh(const string & text, float x, float y);
+	ofMesh getTextMesh(const string & text, float x, float y);
 	ofRectangle getTextBoundingBox(const string & text,float x, float y);
 
 	ofRectangle b;
 	static ofTrueTypeFont font;
 	static bool fontLoaded;
 	static bool useTTF;
-	ofPtr<ofBaseFileSerializer> serializer;
+	std::shared_ptr<ofBaseFileSerializer> serializer;
 
 	static ofColor headerBackgroundColor;
 	static ofColor backgroundColor;
@@ -103,4 +106,5 @@ protected:
 
 private:
 	unsigned long currentFrame;
+    bool bRegisteredForMouseEvents;
 }; 
