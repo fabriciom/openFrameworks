@@ -761,7 +761,7 @@
 		E4B69B4C0A3A1720003C02F2 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 0450;
+				LastUpgradeCheck = 0600;
 			};
 			buildConfigurationList = E4B69B4D0A3A1720003C02F2 /* Build configuration list for PBXProject "openFrameworksLib" */;
 			compatibilityVersion = "Xcode 3.2";
@@ -892,7 +892,7 @@
 				OBJROOT = "$(SRCROOT)/../../lib/osx/build/debug/";
 				OTHER_LDFLAGS = "";
 				PRODUCT_NAME = openFrameworksDebug;
-				SDKROOT = "";
+				SDKROOT = macosx;
 			};
 			name = Debug;
 		};
@@ -925,7 +925,7 @@
 				OBJROOT = "$(SRCROOT)/../../lib/osx/build/release/";
 				OTHER_LDFLAGS = "";
 				PRODUCT_NAME = openFrameworks;
-				SDKROOT = "";
+				SDKROOT = macosx;
 			};
 			name = Release;
 		};
@@ -938,6 +938,7 @@
 				CONFIGURATION_BUILD_DIR = "$(SRCROOT)/../../lib/osx/";
 				CONFIGURATION_TEMP_DIR = "$(SRCROOT)/../../lib/osx/build/debug/";
 				OBJROOT = "$(SRCROOT)/../../lib/osx/build/debug/";
+				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = macosx;
 			};
 			name = Debug;

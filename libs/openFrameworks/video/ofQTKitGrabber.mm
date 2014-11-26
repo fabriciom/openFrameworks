@@ -15,8 +15,7 @@
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
 
 #if defined(MAC_OS_X_VERSION_10_9)
-	#warning Using QTKit, which is deprecated in OSX 10.9
-#endif
+	#endif
 
 @interface QTKitVideoGrabber : QTCaptureVideoPreviewOutput
 {
